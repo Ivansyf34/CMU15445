@@ -49,6 +49,20 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto GetNextPageId() const -> page_id_t;
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
+  auto ValueAt(int index) const -> ValueType;
+  auto KeyIndex(const KeyType &key, const KeyComparator &KeyCmp) -> int;
+  void SetValueAt(int index, const ValueType &value);
+  void InsertNodeAfter(const KeyType &key, const ValueType &value);
+  void InsertNodeBefore(const KeyType &key, const ValueType &value);
+  auto GetItem(int index) -> MappingType &;
+
+  auto Lookup(const KeyType &key, ValueType *value, const KeyComparator &KeyCmp) const -> bool;
+  auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &KeyCmp) -> bool;
+  auto RemoveAndDeleteRecord(const KeyType &key, const KeyComparator &KeyCmp) -> bool;
+  void CopyLastFrom(const MappingType &pair);
+  void MoveFirstToEndOf(BPlusTreeLeafPage *recipient, BufferPoolManager *buffer_pool_manager_);
+  void MoveLastToFrontOf(BPlusTreeLeafPage *recipient, BufferPoolManager *buffer_pool_manager_);
+  void CopyFirstFrom(const MappingType &pair);
 
  private:
   page_id_t next_page_id_;

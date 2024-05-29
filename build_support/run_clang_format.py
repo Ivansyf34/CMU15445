@@ -101,7 +101,7 @@ if __name__ == "__main__":
         "with the existing file, outputting a unifiied diff if "
         "there are any necessary changes")
     parser.add_argument("clang_format_binary",
-                        help="Path to the clang-format binary")
+                        help="Path to the clang-format binary", default = '/usr/bin/clang-format.exe')
     parser.add_argument("exclude_globs",
                         help="Filename containing globs for files "
                         "that should be excluded from the checks")

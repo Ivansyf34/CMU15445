@@ -50,5 +50,9 @@ class NestIndexJoinExecutor : public AbstractExecutor {
  private:
   /** The nested index join plan node. */
   const NestedIndexJoinPlanNode *plan_;
+  /** 左表子执行器，对于索引连接操作来说通常是左表上的 Scan 执行器 */
+  std::unique_ptr<AbstractExecutor> left_executor_;
+  /** 连接结果集 */
+  std::queue<Tuple> results_;
 };
 }  // namespace bustub

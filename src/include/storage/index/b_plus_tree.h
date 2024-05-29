@@ -47,12 +47,25 @@ class BPlusTree {
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
+  void CoalesceOrRedistribute(BPlusTreePage *node, Transaction *transaction);
+  auto Coalesce(BPlusTreePage *neighbor_node, BPlusTreePage *node, InternalPage *parent, int index,
+                Transaction *transaction = nullptr) -> bool;
+  void AdjustRoot(BPlusTreePage *old_root_node, Transaction *transaction = nullptr);
+  void Redistribute(BPlusTreePage *neighbor_node, BPlusTreePage *node, InternalPage *parent, int index,
+                    Transaction *transaction = nullptr);
+  auto SplitLeaf(LeafPage *old_leaf_node, Transaction *transaction = nullptr) -> LeafPage *;
+  auto SplitInternal(InternalPage *old_internal_node, Transaction *transaction = nullptr) -> InternalPage *;
+  void InsertIntoParent(BPlusTreePage *left_child, const KeyType &key, BPlusTreePage *right_child,
+                        Transaction *transaction = nullptr);
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
 
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;
+  auto FindLeaf(const KeyType &key, int op, Transaction *transaction = nullptr) -> Page *;
+  void ReleaseLatchFromQueue(Transaction *transaction);
+  void ReleaseLatchFromQueueTwo(Transaction *transaction);
 
   // return the page id of the root node
   auto GetRootPageId() -> page_id_t;
@@ -89,6 +102,7 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+  ReaderWriterLatch root_page_id_latch_;
 };
 
 }  // namespace bustub

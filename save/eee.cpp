@@ -38,7 +38,7 @@ auto BPLUSTREE_TYPE::FindLeaf(const KeyType &key, int op, Transaction *transacti
     auto *node = reinterpret_cast<BPlusTreePage *>(page->GetData());
     if (op == 0) {
       page->RLatch();
-    } else if (op == 1) {
+    } else if (op == 10) {
       if (node->GetSize() < node->GetMaxSize()) {
         ReleaseLatchFromQueue(transaction);
       }
@@ -151,12 +151,14 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   auto tag = leaf_node->Insert(key, value, comparator_);
   if (tag) {
     ReleaseLatchFromQueue(transaction);
+    buffer_pool_manager_->UnpinPage(leaf_node->GetPageId(), true);
     root_page_id_latch_.WUnlock();
     return true;
   }
   if (!tag && leaf_node->GetSize() <= leaf_node->GetMaxSize()) {
     // 已存在
     ReleaseLatchFromQueue(transaction);
+    buffer_pool_manager_->UnpinPage(leaf_node->GetPageId(), true);
     root_page_id_latch_.WUnlock();
     return false;
   }
@@ -176,7 +178,7 @@ auto BPLUSTREE_TYPE::SplitLeaf(LeafPage *old_leaf_node, Transaction *transaction
   // 创建一个新的叶子节点
   page_id_t page_id;
   auto page = buffer_pool_manager_->NewPage(&page_id);
-  page->WLatch();
+  // page->WLatch();
   transaction->AddIntoPageSet(page);
   if (page == nullptr) {
     throw Exception(ExceptionType::OUT_OF_MEMORY, "Cannot allocate new page");
@@ -207,7 +209,7 @@ auto BPLUSTREE_TYPE::SplitInternal(InternalPage *old_internal_node, Transaction 
   // 创建一个新的内部节点
   page_id_t page_id;
   auto page = buffer_pool_manager_->NewPage(&page_id);
-  page->WLatch();
+  // page->WLatch();
   transaction->AddIntoPageSet(page);
   if (page == nullptr) {
     throw Exception(ExceptionType::OUT_OF_MEMORY, "Cannot allocate new page");
@@ -219,6 +221,8 @@ auto BPLUSTREE_TYPE::SplitInternal(InternalPage *old_internal_node, Transaction 
   int split_point = (old_internal_node->GetSize() + 1) / 2;
 
   // 将原内部节点的后半部分移动到新的内部节点中
+  /*  new_internal_node->SetSize(1);
+   new_internal_node->SetValueAt(0, old_internal_node->ValueAt(split_point)); */
   for (int i = split_point + 1; i < old_internal_node->GetSize(); ++i) {
     new_internal_node->Insert(old_internal_node->KeyAt(i), old_internal_node->ValueAt(i), comparator_);
   }
@@ -235,7 +239,7 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *left_child, const KeyType &
   if (left_child->IsRootPage()) {
     // 创建一个新的根节点
     auto page = buffer_pool_manager_->NewPage(&root_page_id_);
-    page->WLatch();
+    // page->WLatch();
     transaction->AddIntoPageSet(page);
     auto *new_root = reinterpret_cast<InternalPage *>(page->GetData());
     new_root->Init(root_page_id_, INVALID_PAGE_ID, internal_max_size_);
@@ -247,6 +251,10 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *left_child, const KeyType &
 
     left_child->SetParentPageId(new_root->GetPageId());
     right_child->SetParentPageId(new_root->GetPageId());
+
+    buffer_pool_manager_->UnpinPage(left_child->GetPageId(), true);
+    buffer_pool_manager_->UnpinPage(right_child->GetPageId(), true);
+    buffer_pool_manager_->UnpinPage(new_root->GetPageId(), true);
     return;
   }
   page_id_t page_id = left_child->GetParentPageId();
@@ -255,6 +263,10 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *left_child, const KeyType &
 
   // 插入新的键值对到父节点中
   if (parent_node->Insert(key, right_child->GetPageId(), comparator_)) {
+    // 释放资源
+    buffer_pool_manager_->UnpinPage(left_child->GetPageId(), true);
+    buffer_pool_manager_->UnpinPage(right_child->GetPageId(), true);
+    buffer_pool_manager_->UnpinPage(parent_node->GetPageId(), true);
     return;
   }
 
@@ -263,6 +275,8 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *left_child, const KeyType &
   right_child->SetParentPageId(new_parent_node->GetPageId());
 
   ReleaseLatchFromQueueTwo(transaction);
+  buffer_pool_manager_->UnpinPage(left_child->GetPageId(), true);
+  buffer_pool_manager_->UnpinPage(right_child->GetPageId(), true);
 
   // 将分裂后的父节点插入到原父节点的父节点
   InsertIntoParent(parent_node, new_parent_node->KeyAt(0), new_parent_node, transaction);
@@ -375,7 +389,6 @@ auto BPLUSTREE_TYPE::Coalesce(BPlusTreePage *neighbor_node, BPlusTreePage *node,
   parent->Remove(index);
 
   if (parent->GetSize() < parent->GetMinSize()) {
-    ReleaseLatchFromQueueTwo(transaction);
     CoalesceOrRedistribute(parent, transaction);
   }
 

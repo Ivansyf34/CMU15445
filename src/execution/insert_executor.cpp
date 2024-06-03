@@ -20,7 +20,19 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
-void InsertExecutor::Init() { child_executor_->Init(); }
+void InsertExecutor::Init() {
+  child_executor_->Init();
+  TableInfo *table_info = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
+  try {
+    bool is_locked = exec_ctx_->GetLockManager()->LockTable(
+        exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, table_info->oid_);
+    if (!is_locked) {
+      throw ExecutionException("Insert Executor Get Table Lock Failed");
+    }
+  } catch (TransactionAbortException &e) {
+    throw ExecutionException("Insert Executor Get Table Lock Failed");
+  }
+}
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {  // 插入完毕返回 false
   if (has_inserted_) {
@@ -36,6 +48,17 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {  //
   int insert_count = 0;
   while (child_executor_->Next(tuple, rid)) {
     table_info->table_->InsertTuple(*tuple, rid, exec_ctx_->GetTransaction());
+
+    try {
+      bool is_locked = exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(),
+                                                            LockManager::LockMode::EXCLUSIVE, table_info->oid_, *rid);
+      if (!is_locked) {
+        throw ExecutionException("Insert Executor Get Row Lock Failed");
+      }
+    } catch (TransactionAbortException &e) {
+      throw ExecutionException("Insert Executor Get Row Lock Failed");
+    }
+
     for (const auto &index : index_info) {
       // 根据索引的模式从数据元组中构造索引元组，并插入到索引中
       Tuple key_tuple = tuple->KeyFromTuple(child_executor_->GetOutputSchema(), index->key_schema_,

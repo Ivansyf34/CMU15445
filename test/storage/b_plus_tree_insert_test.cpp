@@ -85,7 +85,7 @@ TEST(BPlusTreeTests, InsertTest2) {
 
   std::vector<int64_t> keys = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
   for (int64_t i = 21; i <= 10000; ++i) {
-      keys.push_back(i);
+    keys.push_back(i);
   }
 
   for (auto key : keys) {

@@ -108,7 +108,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &val
   while (insert_pos < GetSize() && KeyCmp(key, array_[insert_pos].first) > 0) {
     insert_pos++;
   }
-  if (KeyCmp(key, array_[insert_pos].first) == 0) {
+  if (insert_pos < GetSize() && KeyCmp(key, array_[insert_pos].first) == 0) {
     return false;
   }
 

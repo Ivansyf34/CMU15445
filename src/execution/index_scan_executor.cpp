@@ -31,9 +31,9 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
   // 获取元组的 rid 并填充元组内容
   *rid = (*table_iter_).second;
-  table_heap_->GetTuple(*rid, tuple, exec_ctx_->GetTransaction());
+  auto result = table_heap_->GetTuple(*rid, tuple, exec_ctx_->GetTransaction());
   ++table_iter_;
-  return true;
+  return result;
 }
 
 }  // namespace bustub

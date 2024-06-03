@@ -52,5 +52,6 @@ class SeqScanExecutor : public AbstractExecutor {
   const SeqScanPlanNode *plan_;
   TableIterator table_iter_ = {nullptr, RID(), nullptr};
   TableHeap *table_heap_;
+  TableInfo *table_info_;
 };
 }  // namespace bustub

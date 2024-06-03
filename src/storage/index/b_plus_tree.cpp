@@ -105,7 +105,9 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   // 在叶子节点中查找键值
   ValueType value;
   bool found = leaf_node->Lookup(key, &value, comparator_);
-  result->push_back(value);
+  if (found) {
+    result->push_back(value);
+  }
 
   // 释放页面
   leaf_page->RUnlatch();
@@ -444,6 +446,9 @@ void BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node, Transaction *trans
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
+  if (root_page_id_ == INVALID_PAGE_ID) {
+    return INDEXITERATOR_TYPE(nullptr, 0, nullptr);
+  }
   root_page_id_latch_.RLock();
   page_id_t page_id = root_page_id_;
   while (true) {
@@ -475,6 +480,9 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
+  if (root_page_id_ == INVALID_PAGE_ID) {
+    return INDEXITERATOR_TYPE(nullptr, 0, nullptr);
+  }
   root_page_id_latch_.RLock();
   auto *leaf_page = FindLeaf(key, 0);
   auto *leaf_node = reinterpret_cast<LeafPage *>(leaf_page->GetData());
@@ -491,6 +499,9 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
+  if (root_page_id_ == INVALID_PAGE_ID) {
+    return INDEXITERATOR_TYPE(nullptr, 0, nullptr);
+  }
   root_page_id_latch_.RLock();
   page_id_t page_id = root_page_id_;
   while (true) {

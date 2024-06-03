@@ -13,6 +13,7 @@
 #pragma once
 
 #include <memory>
+#include <queue>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -24,6 +25,7 @@
 #include "execution/plans/nested_index_join_plan.h"
 #include "storage/table/tmp_tuple.h"
 #include "storage/table/tuple.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 

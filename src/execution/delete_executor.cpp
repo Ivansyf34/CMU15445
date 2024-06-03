@@ -20,14 +20,26 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
-void DeleteExecutor::Init() { child_executor_->Init(); }
+void DeleteExecutor::Init() {
+  child_executor_->Init();
+  TableInfo *table_info = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
+  try {
+    bool is_locked = exec_ctx_->GetLockManager()->LockTable(
+        exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, table_info->oid_);
+    if (!is_locked) {
+      throw ExecutionException("Delete Executor Get Table Lock Failed");
+    }
+  } catch (TransactionAbortException &e) {
+    throw ExecutionException("Delete Executor Get Table Lock Failed");
+  }
+}
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   if (has_deleted_) {
     return false;
   }
   has_deleted_ = true;
-  
+
   // 获取待删除的表信息及其索引列表
   TableInfo *table_info = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
   std::vector<IndexInfo *> index_info = exec_ctx_->GetCatalog()->GetTableIndexes(table_info->name_);
@@ -35,6 +47,16 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   // 从子执行器 Values 中逐个获取元组并插入到表中，同时更新所有的索引
   int delete_count = 0;
   while (child_executor_->Next(tuple, rid)) {
+    try {
+      bool is_locked = exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(),
+                                                            LockManager::LockMode::EXCLUSIVE, table_info->oid_, *rid);
+      if (!is_locked) {
+        throw ExecutionException("Delete Executor Get Row Lock Failed");
+      }
+    } catch (TransactionAbortException &e) {
+      throw ExecutionException("Delete Executor Get Row Lock Failed");
+    }
+
     table_info->table_->MarkDelete(*rid, exec_ctx_->GetTransaction());
     for (const auto &index : index_info) {
       // 根据索引的模式从数据元组中构造索引元组，并从索引中删除

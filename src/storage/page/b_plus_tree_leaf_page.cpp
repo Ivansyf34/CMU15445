@@ -159,7 +159,7 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient,
                                                   BufferPoolManager *buffer_pool_manager_) {
   // 移动第一个键值对到兄弟节点的末尾
-  recipient->CopyLastFrom(array_[0]);
+  recipient->InsertNodeAfter(array_[GetSize() - 1].first, array_[GetSize() - 1].second);
 
   // 将剩余的键值对左移
   for (int i = 0; i < GetSize() - 1; ++i) {
@@ -171,29 +171,13 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient,
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyLastFrom(const MappingType &pair) {
-  array_[GetSize()] = pair;
-  IncreaseSize(1);
-}
-
-INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient,
                                                    BufferPoolManager *buffer_pool_manager_) {
   // 移动最后一个键值对到兄弟节点的开头
-  recipient->CopyFirstFrom(array_[GetSize() - 1]);
+  recipient->InsertNodeBefore(array_[GetSize() - 1].first, array_[GetSize() - 1].second);
 
   // 更新当前节点的大小
   IncreaseSize(-1);
-}
-
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyFirstFrom(const MappingType &pair) {
-  // 将现有的键值对右移
-  for (int i = GetSize(); i > 0; --i) {
-    array_[i] = array_[i - 1];
-  }
-  array_[0] = pair;
-  IncreaseSize(1);
 }
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;

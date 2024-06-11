@@ -203,7 +203,7 @@ auto BPLUSTREE_TYPE::SplitLeaf(LeafPage *old_leaf_node, Transaction *transaction
 
   // 将原叶子节点的后半部分移动到新的叶子节点中
   for (int i = split_point; i < old_leaf_node->GetSize(); ++i) {
-    new_leaf_node->Insert(old_leaf_node->KeyAt(i), old_leaf_node->ValueAt(i), comparator_);
+    new_leaf_node->InsertNodeAfter(old_leaf_node->KeyAt(i), old_leaf_node->ValueAt(i));
   }
 
   // 更新原叶子节点的大小
@@ -234,7 +234,7 @@ auto BPLUSTREE_TYPE::SplitInternal(InternalPage *old_internal_node, Transaction 
   // 将原内部节点的后半部分移动到新的内部节点中
   for (int i = split_point; i < old_internal_node->GetSize(); ++i) {
     auto child_page_id = old_internal_node->ValueAt(i);
-    new_internal_node->Insert(old_internal_node->KeyAt(i), child_page_id, comparator_);
+    new_internal_node->InsertNodeAfter(old_internal_node->KeyAt(i), child_page_id);
 
     auto child_page = buffer_pool_manager_->FetchPage(child_page_id);
     auto *child_node = reinterpret_cast<BPlusTreePage *>(child_page->GetData());
@@ -337,6 +337,8 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::CoalesceOrRedistribute(BPlusTreePage *node, Transaction *transaction) {
   if (node->IsRootPage()) {
+    AdjustRoot(node, transaction);
+    ReleaseLatchFromQueue(transaction);
     return;
   }
 

@@ -23,15 +23,8 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
 void DeleteExecutor::Init() {
   child_executor_->Init();
   TableInfo *table_info = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
-  try {
-    bool is_locked = exec_ctx_->GetLockManager()->LockTable(
-        exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE, table_info->oid_);
-    if (!is_locked) {
-      throw ExecutionException("Delete Executor Get Table Lock Failed");
-    }
-  } catch (TransactionAbortException &e) {
-    throw ExecutionException("Delete Executor Get Table Lock Failed");
-  }
+  exec_ctx_->GetLockManager()->LockTable(exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_EXCLUSIVE,
+                                         table_info->oid_);
 }
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
@@ -47,15 +40,8 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   // 从子执行器 Values 中逐个获取元组并插入到表中，同时更新所有的索引
   int delete_count = 0;
   while (child_executor_->Next(tuple, rid)) {
-    try {
-      bool is_locked = exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(),
-                                                            LockManager::LockMode::EXCLUSIVE, table_info->oid_, *rid);
-      if (!is_locked) {
-        throw ExecutionException("Delete Executor Get Row Lock Failed");
-      }
-    } catch (TransactionAbortException &e) {
-      throw ExecutionException("Delete Executor Get Row Lock Failed");
-    }
+    exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::EXCLUSIVE,
+                                         table_info->oid_, *rid);
 
     table_info->table_->MarkDelete(*rid, exec_ctx_->GetTransaction());
     for (const auto &index : index_info) {

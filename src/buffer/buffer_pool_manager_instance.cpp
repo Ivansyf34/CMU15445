@@ -13,7 +13,6 @@
 #include "buffer/buffer_pool_manager_instance.h"
 
 #include "common/exception.h"
-#include "common/logger.h"
 #include "common/macros.h"
 
 namespace bustub {
@@ -58,8 +57,8 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
     frame_id = free_list_.front();
     free_list_.pop_front();
   } else {
-    assert(replacer_->Evict(&frame_id));
-    // replacer_->Evict(&frame_id);
+    // assert(replacer_->Evict(&frame_id));
+    replacer_->Evict(&frame_id);
     page_id_t evicted_page_id = pages_[frame_id].GetPageId();
 
     if (pages_[frame_id].IsDirty()) {
@@ -81,7 +80,6 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
 }
 
 auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
-  // LOG_INFO("FetchPgImp");
   std::scoped_lock<std::mutex> lock(latch_);
   frame_id_t frame_id;
   if (page_table_->Find(page_id, frame_id)) {
@@ -106,8 +104,8 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
     frame_id = free_list_.front();
     free_list_.pop_front();
   } else {
-    assert(replacer_->Evict(&frame_id));
-    // replacer_->Evict(&frame_id);
+    // assert(replacer_->Evict(&frame_id));
+    replacer_->Evict(&frame_id);
     page_id_t evicted_page_id = pages_[frame_id].GetPageId();
     if (pages_[frame_id].IsDirty()) {
       disk_manager_->WritePage(evicted_page_id, pages_[frame_id].GetData());
@@ -157,7 +155,6 @@ auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
     return false;
   }
   disk_manager_->WritePage(page_id, pages_[frame_id].GetData());
-  pages_[frame_id].is_dirty_ = true;
   return true;
 }
 
@@ -180,14 +177,14 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   if (pages_[frame_id].GetPinCount() > 0) {
     return false;
   }
-  page_table_->Remove(page_id);
   replacer_->Remove(frame_id);
-  free_list_.push_back(frame_id);
   pages_[frame_id].ResetMemory();
   pages_[frame_id].page_id_ = INVALID_PAGE_ID;
   pages_[frame_id].pin_count_ = 0;
   pages_[frame_id].is_dirty_ = false;
   DeallocatePage(page_id);
+  page_table_->Remove(page_id);
+  free_list_.push_back(frame_id);
 
   return true;
 }

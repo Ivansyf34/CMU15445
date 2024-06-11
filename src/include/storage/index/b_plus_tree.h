@@ -51,8 +51,8 @@ class BPlusTree {
   auto Coalesce(BPlusTreePage *neighbor_node, BPlusTreePage *node, InternalPage *parent, int index,
                 Transaction *transaction = nullptr) -> bool;
   void AdjustRoot(BPlusTreePage *old_root_node, Transaction *transaction = nullptr);
-  void Redistribute(BPlusTreePage *neighbor_node, BPlusTreePage *node, InternalPage *parent, int index,
-                    Transaction *transaction = nullptr);
+  auto Redistribute(BPlusTreePage *neighbor_node, BPlusTreePage *node, InternalPage *parent, int index,
+                    Transaction *transaction = nullptr) -> bool;
   auto SplitLeaf(LeafPage *old_leaf_node, Transaction *transaction = nullptr) -> LeafPage *;
   auto SplitInternal(InternalPage *old_internal_node, Transaction *transaction = nullptr) -> InternalPage *;
   void InsertIntoParent(BPlusTreePage *left_child, const KeyType &key, BPlusTreePage *right_child,
@@ -63,9 +63,9 @@ class BPlusTree {
 
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;
-  auto FindLeaf(const KeyType &key, int op, Transaction *transaction = nullptr) -> Page *;
+  auto FindLeaf(const KeyType &key, int op, bool leftmost, bool rightmost, Transaction *transaction = nullptr)
+      -> Page *;
   void ReleaseLatchFromQueue(Transaction *transaction);
-  void ReleaseLatchFromQueueTwo(Transaction *transaction);
 
   // return the page id of the root node
   auto GetRootPageId() -> page_id_t;

@@ -13,6 +13,7 @@
 #include "buffer/buffer_pool_manager_instance.h"
 
 #include "common/exception.h"
+#include "common/logger.h"
 #include "common/macros.h"
 
 namespace bustub {
@@ -80,6 +81,7 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
 }
 
 auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
+  // LOG_INFO("FetchPgImp");
   std::scoped_lock<std::mutex> lock(latch_);
   frame_id_t frame_id;
   if (page_table_->Find(page_id, frame_id)) {

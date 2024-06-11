@@ -12,6 +12,7 @@
 #include <sstream>
 
 #include "common/exception.h"
+#include "common/logger.h"
 #include "common/rid.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
 
@@ -58,23 +59,39 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::SetValueAt(int index, const ValueType &value) { array_[index].second = value; }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::InsertNodeAfter(const KeyType &key, const ValueType &value) {
-  array_[GetSize()].first = key;
-  array_[GetSize()].second = value;
-  IncreaseSize(1);
+void B_PLUS_TREE_LEAF_PAGE_TYPE::InsertAllNodeAfter(BPlusTreeLeafPage *node) {
+  int size_temp = node->GetSize();
+  int current_size = GetSize();
+
+  // Insert elements from the node after the current node
+  for (int i = 0; i < size_temp; ++i) {
+    array_[current_size + i] = node->GetItem(i);
+  }
+
+  // Update current node size
+  IncreaseSize(size_temp);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index) -> MappingType & { return array_[index]; }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::InsertNodeBefore(const KeyType &key, const ValueType &value) {
-  for (int i = 0; i < GetSize(); i++) {
-    array_[i + 1] = array_[i];
+void B_PLUS_TREE_LEAF_PAGE_TYPE::InsertAllNodeBefore(BPlusTreeLeafPage *node) {
+  int size_temp = node->GetSize();
+  int current_size = GetSize();
+
+  // 右移当前节点的元素以腾出空间
+  for (int i = current_size - 1; i >= 0; --i) {
+    array_[i + size_temp] = array_[i];
   }
-  array_[0].first = key;
-  array_[0].second = value;
-  IncreaseSize(1);
+
+  // 复制另一个节点的元素到当前节点的开头
+  for (int i = 0; i < size_temp; ++i) {
+    array_[i] = node->GetItem(i);
+  }
+
+  // 更新当前节点的大小
+  IncreaseSize(size_temp);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -92,6 +109,29 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Lookup(const KeyType &key, ValueType *value, co
       left = mid + 1;
     } else {
       *value = array_[mid].second;
+      return true;
+    }
+  }
+
+  // 如果未找到匹配的键值，则返回false
+  return false;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::DetectInsert(const KeyType &key, const ValueType &value, const KeyComparator &KeyCmp)
+    -> bool {
+  int left = 0;
+  int right = GetSize() - 1;
+
+  // 二分查找
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    if (KeyCmp(KeyAt(mid), key) > 0) {
+      right = mid - 1;
+    } else if (KeyCmp(KeyAt(mid), key) < 0) {
+      left = mid + 1;
+    } else {
+      // array_[mid].second = value;
       return true;
     }
   }
@@ -119,6 +159,23 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &val
   array_[insert_pos] = std::make_pair(key, value);
   IncreaseSize(1);  // 增加节点大小
   return GetSize() <= GetMaxSize();
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::InsertNodeAfter(const KeyType &key, const ValueType &value) {
+  array_[GetSize()].first = key;
+  array_[GetSize()].second = value;
+  IncreaseSize(1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::InsertNodeBefore(const KeyType &key, const ValueType &value) {
+  for (int i = GetSize(); i > 0; --i) {
+    array_[i] = array_[i - 1];
+  }
+  array_[0].first = key;
+  array_[0].second = value;
+  IncreaseSize(1);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -159,7 +216,7 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient,
                                                   BufferPoolManager *buffer_pool_manager_) {
   // 移动第一个键值对到兄弟节点的末尾
-  recipient->InsertNodeAfter(array_[GetSize() - 1].first, array_[GetSize() - 1].second);
+  recipient->InsertNodeAfter(array_[0].first, array_[0].second);
 
   // 将剩余的键值对左移
   for (int i = 0; i < GetSize() - 1; ++i) {

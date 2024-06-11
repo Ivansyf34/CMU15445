@@ -126,6 +126,43 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) -> int {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetItem(int index) -> MappingType & { return array_[index]; }
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertAllNodeAfter(BPlusTreeInternalPage *node) {
+  int size_temp = node->GetSize();
+  int current_size = GetSize();
+
+  // Insert elements from the node after the current node
+  for (int i = 0; i < size_temp; ++i) {
+    array_[current_size + i] = node->GetItem(i);
+  }
+
+  // Update current node size
+  IncreaseSize(size_temp);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertAllNodeBefore(BPlusTreeInternalPage *node) {
+  int size_temp = node->GetSize();
+  int current_size = GetSize();
+
+  // 右移当前节点的元素以腾出空间
+  for (int i = current_size - 1; i >= 0; --i) {
+    array_[i + size_temp] = array_[i];
+  }
+
+  // 复制另一个节点的元素到当前节点的开头
+  for (int i = 0; i < size_temp; ++i) {
+    array_[i].first = node->KeyAt(i);
+    array_[i].second = node->ValueAt(i);
+  }
+
+  // 更新当前节点的大小
+  IncreaseSize(size_temp);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertNodeAfter(const KeyType &key, const ValueType &value) {
   array_[GetSize()].first = key;
   array_[GetSize()].second = value;
@@ -134,8 +171,8 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertNodeAfter(const KeyType &key, const V
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertNodeBefore(const KeyType &key, const ValueType &value) {
-  for (int i = 0; i < GetSize(); i++) {
-    array_[i + 1] = array_[i];
+  for (int i = GetSize(); i > 0; --i) {
+    array_[i] = array_[i - 1];
   }
   array_[0].first = key;
   array_[0].second = value;

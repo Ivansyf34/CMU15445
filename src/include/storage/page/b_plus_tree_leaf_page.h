@@ -52,13 +52,16 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto ValueAt(int index) const -> ValueType;
   auto KeyIndex(const KeyType &key, const KeyComparator &KeyCmp) -> int;
   void SetValueAt(int index, const ValueType &value);
-  void InsertNodeAfter(const KeyType &key, const ValueType &value);
-  void InsertNodeBefore(const KeyType &key, const ValueType &value);
+  void InsertAllNodeBefore(BPlusTreeLeafPage *node);
+  void InsertAllNodeAfter(BPlusTreeLeafPage *node);
   auto GetItem(int index) -> MappingType &;
+  auto DetectInsert(const KeyType &key, const ValueType &value, const KeyComparator &KeyCmp) -> bool;
 
   auto Lookup(const KeyType &key, ValueType *value, const KeyComparator &KeyCmp) const -> bool;
   auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &KeyCmp) -> bool;
   auto RemoveAndDeleteRecord(const KeyType &key, const KeyComparator &KeyCmp) -> bool;
+  void InsertNodeAfter(const KeyType &key, const ValueType &value);
+  void InsertNodeBefore(const KeyType &key, const ValueType &value);
   void MoveFirstToEndOf(BPlusTreeLeafPage *recipient, BufferPoolManager *buffer_pool_manager_);
   void MoveLastToFrontOf(BPlusTreeLeafPage *recipient, BufferPoolManager *buffer_pool_manager_);
 
